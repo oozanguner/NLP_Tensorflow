@@ -6,6 +6,14 @@ from keras.utils import pad_sequences
 import io
 import json
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore")  
+
+def plot_metrics(history, metric="loss"):
+    plt.plot(history.history[metric], label=metric)
+    plt.plot(history.history["val_" + metric], label="val_" + metric)
+    plt.legend()
+    plt.show()
 
 # Embedding is the expression of a language or individual words in the given data as real-valued vectors in a less dimensional space.
 # The main idea in Embedding is to represent each word in your vocabulary with vectors. These vectors have trainable weights so as your neural network learns,
@@ -151,11 +159,110 @@ model.summary()
 # Train and Evaulate
 history = model.fit(train_padded, train_labels, batch_size=16, epochs=10, validation_data=(test_padded, test_labels))
 
-def plot_metrics(history, metric="loss"):
-    plt.plot(history.history[metric], label=metric)
-    plt.plot(history.history["val_" + metric], label="val_" + metric)
-    plt.legend()
-    plt.show()
+plot_metrics(history, "loss")
+plot_metrics(history, "accuracy")
+
+
+# SUBWORD TOKENIZATION WITH THE IMDB DATASET
+# This is an alternative to word-based tokenization which you have been using in the previous labs. 
+# You will see how it works and its implications on preparing your data and training your model.
+
+# 1)Word-Based Tokenization
+# Take 2 training examples and print the text feature
+imdb_plaintext, info_plaintext = tfds.load("imdb_reviews", with_info=True, as_supervised=True)
+
+train_plaintext, test_plaintext = imdb_plaintext["train"], imdb_plaintext["test"]
+
+vocab_size = 8000
+max_words = 32
+padding_type = "post"
+truncate_type = "post"
+oov = "<OOV>"  
+
+train_sentences = []
+train_labels = []
+for s, l in train_plaintext:
+    train_sentences.append(s.numpy().decode("utf8"))
+    train_labels.append(l.numpy())
+
+train_sentences_final = np.array(train_sentences)
+train_labels_final = np.array(train_labels)
+
+test_sentences = []
+test_labels = []
+for s, l in test_plaintext:
+   test_sentences.append(s.numpy().decode("utf8"))
+   test_labels.append(l.numpy())
+
+test_sentences_final = np.array(test_sentences)
+test_labels_final = np.array(test_labels)
+
+tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov)
+tokenizer.fit_on_texts(train_sentences_final)
+word_index = tokenizer.word_index
+train_seq = tokenizer.texts_to_sequences(train_sentences_final)
+train_padded = pad_sequences(train_seq, maxlen=max_words, padding=padding_type, truncating=truncate_type)
+
+test_seq = tokenizer.texts_to_sequences(test_sentences_final)
+test_padded = pad_sequences(test_seq, maxlen=max_words, padding=padding_type, truncating=truncate_type)
+
+# 2)Subword Tokenization
+# Take 2 training examples and print the subword feature
+imdb_subwords, info_subwords = tfds.load("imdb_reviews/subwords8k", with_info=True, as_supervised=True)
+
+train_subwords, test_subwords = imdb_subwords["train"], imdb_subwords["test"]
+
+for s,l in train_subwords.take(2):
+    print(s.numpy())
+    print(l.numpy())
+
+
+# Description of features
+info_subwords.features
+
+# Encode the subwords
+tokenizer_subwords = info_subwords.features["text"].encoder
+tokenizer_subwords.subwords
+# Example
+sample_sentence = np.array(["I'm still thinking of you. I think you're a great person. I love you."])
+# Encode using the plain-text  tokenizer (Word-based Tokenization)
+tokenized_string = tokenizer.texts_to_sequences(sample_sentence)
+original_string = tokenizer.sequences_to_texts(tokenized_string)[0]
+# Encode using the subword tokenizer (Subword Tokenization)
+tokenized_string_subwords = tokenizer_subwords.encode(sample_sentence[0])
+original_string_subwords = tokenizer_subwords.decode(tokenizer_subwords.encode(sample_sentence[0]))
+
+# Original String
+for example in train_subwords.take(1):
+  print(tokenizer_subwords.decode(example[0]))
+
+# Encoded String
+for example in train_subwords.take(1):
+  print(tokenizer_subwords.encode(example[0]))
+
+# Model
+BUFFER_SIZE = 10000
+BATCH_SIZE = 64
+# Shuffle the training data
+train_dataset = train_subwords.shuffle(BUFFER_SIZE)
+
+# Batch and pad the datasets to the maximum length of the sequences
+train_dataset = train_dataset.padded_batch(BATCH_SIZE)
+test_dataset = test_subwords.padded_batch(BATCH_SIZE)
+
+embedding_dim = 64
+
+model = tf.keras.Sequential([
+   tf.keras.layers.Embedding(tokenizer_subwords.vocab_size, embedding_dim),
+   tf.keras.layers.GlobalAveragePooling1D(),
+   tf.keras.layers.Dense(units=6, activation="relu"),
+   tf.keras.layers.Dense(units=1, activation="sigmoid")
+])
+
+model.compile(loss="binary_crossentropy", optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), metrics = ["accuracy"])
+model.summary()
+
+history = model.fit(train_dataset, batch_size=8, epochs=10, validation_data=test_dataset)
 
 plot_metrics(history, "loss")
 plot_metrics(history, "accuracy")

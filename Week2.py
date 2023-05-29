@@ -1,3 +1,4 @@
+from functions import *
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
@@ -8,12 +9,6 @@ import json
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")  
-
-def plot_metrics(history, metric="loss"):
-    plt.plot(history.history[metric], label=metric)
-    plt.plot(history.history["val_" + metric], label="val_" + metric)
-    plt.legend()
-    plt.show()
 
 # Embedding is the expression of a language or individual words in the given data as real-valued vectors in a less dimensional space.
 # The main idea in Embedding is to represent each word in your vocabulary with vectors. These vectors have trainable weights so as your neural network learns,

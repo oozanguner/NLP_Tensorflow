@@ -203,3 +203,7 @@ conv_history = conv_model.fit(padded_train, y_train, epochs=5, validation_data=(
 
 plot_metrics(conv_history, "accuracy")
 plot_metrics(conv_history, "loss")
+
+# IMPORTANT: 
+ # This is how you need to set the Embedding layer when using pre-trained embeddings
+    #    tf.keras.layers.Embedding(vocab_size+1, embedding_dim, input_length=maxlen, weights=[embeddings_matrix], trainable=False)

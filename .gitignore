@@ -4,4 +4,4 @@ __pycache__
 .venv
 .idea
 datasets
-NLP_TENSORFLOW/functions.py
+functions.py

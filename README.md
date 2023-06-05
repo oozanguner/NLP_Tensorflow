@@ -1,1 +1,1 @@
-Personel Notes and Codes from Natural Language Processing in Tensorflow-Coursera
+Personal Notes and Exercises from Natural Language Processing in Tensorflow-Coursera.

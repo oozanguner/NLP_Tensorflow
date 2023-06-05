@@ -3,6 +3,9 @@ import csv
 from keras.preprocessing.text import Tokenizer
 from keras.utils import pad_sequences
 import tensorflow as tf
+from keras.utils import to_categorical
+from keras.layers import Dropout
+from keras.optimizers import Adam
 
 def plot_metrics(history, metric="loss"):
     plt.plot(history.history[metric], label=metric)
@@ -130,5 +133,82 @@ def create_model_with_transfer_learning(vocab_size, embedding_dim, maxlen, embed
     model.compile(loss="binary_crossentropy",
                   optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                   metrics=['accuracy']) 
+
+    return model
+
+def n_gram_seqs(corpus, tokenizer):
+    """
+    Generates a list of n-gram sequences
+    
+    Args:
+        corpus (list of string): lines of texts to generate n-grams for
+        tokenizer (object): an instance of the Tokenizer class containing the word-index dictionary
+    
+    Returns:
+        input_sequences (list of int): the n-gram sequences for each line in the corpus
+    """
+    input_sequences = []
+
+    for line in corpus:
+      token_list = tokenizer.texts_to_sequences([line])[0]
+      for i in range(1,len(token_list)):
+        n_gram_sequences = token_list[:i+1]
+        input_sequences.append(n_gram_sequences)
+    
+    return input_sequences
+
+def pad_seqs(input_sequences, maxlen):
+    """
+    Pads tokenized sequences to the same length
+    
+    Args:
+        input_sequences (list of int): tokenized sequences to pad
+        maxlen (int): maximum length of the token sequences
+    
+    Returns:
+        padded_sequences (array of int): tokenized sequences padded to the same length
+    """
+    padded_sequences = pad_sequences(input_sequences, maxlen, padding = "pre")
+    
+    return padded_sequences
+
+def features_and_labels(input_sequences, total_words):
+    """
+    Generates features and labels from n-grams
+    
+    Args:
+        input_sequences (list of int): sequences to split features and labels from
+        total_words (int): vocabulary size
+    
+    Returns:
+        features, one_hot_labels (array of int, array of int): arrays of features and one-hot encoded labels
+    """
+    features = input_sequences[:, :-1]
+    labels = input_sequences[:, -1]
+    one_hot_labels = to_categorical(labels, num_classes=total_words)
+
+    return features, one_hot_labels
+
+def create_model(total_words, max_sequence_len):
+    """
+    Creates a text generator model
+    
+    Args:
+        total_words (int): size of the vocabulary for the Embedding layer input
+        max_sequence_len (int): length of the input sequences
+    
+    Returns:
+        model (tf.keras Model): the text generator model
+    """
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.Embedding(total_words, 100, input_length=max_sequence_len-1))
+    model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, activation="relu")))
+    model.add(Dropout(0.2))
+    model.add(tf.keras.layers.Dense(total_words, activation="softmax"))
+
+    # Compile the model
+    model.compile(loss="categorical_crossentropy",
+                  optimizer=Adam(learning_rate=0.001),
+                  metrics=['accuracy'])
 
     return model

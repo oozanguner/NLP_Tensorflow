@@ -1,4 +1,4 @@
-from functions import *
+from modules.functions import *
 import tensorflow as tf
 from keras.models import Sequential
 from keras.preprocessing.text import Tokenizer

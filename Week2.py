@@ -1,4 +1,4 @@
-from functions import *
+from modules.functions import *
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
